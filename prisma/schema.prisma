@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Plan: "FREE" | "PRO"
+// InvoiceStatus: "DRAFT" | "SENT" | "PAID" | "OVERDUE"
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  passwordHash  String
+  createdAt     DateTime @default(now())
+
+  plan                  String   @default("FREE")
+  stripeCustomerId      String?  @unique
+  stripeSubscriptionId  String?  @unique
+  stripeCurrentPeriodEnd DateTime?
+
+  clients  Client[]
+  invoices Invoice[]
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  company   String?
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@index([userId])
+}
+
+model Invoice {
+  id        String   @id @default(cuid())
+  number    String
+  status    String   @default("DRAFT")
+  notes     String?
+  dueDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  items InvoiceItem[]
+
+  @@unique([userId, number])
+  @@index([userId])
+  @@index([clientId])
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  description String
+  quantity    Float  @default(1)
+  unitPrice   Float
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
